@@ -1,6 +1,10 @@
 from logging import Logger
+from os import environ
 
+from psutil import process_iter
 from win32com import client
+
+from creon.utils import run_creon_plus
 
 
 class Creon:
@@ -9,7 +13,16 @@ class Creon:
     __utils__ = None
     __trades__ = None
     __trade_actions__ = {'sell': '1', 'buy': '2'}
-    __loger__ = Logger(__name__)
+    __logger__ = Logger(__name__)
+
+    def __init__(self):
+        if 'CpStart.exe' not in [p.name() for p in process_iter()]:
+            run_creon_plus(
+                environ.get('CREON_USERNAME', ''),
+                environ.get('CREON_PASSWORD', ''),
+                environ.get('CREON_CERTIFICATION_PASSWORD', ''),
+                environ.get('CREON_PATH', '')
+            )
 
     @property
     def codes(self) -> client.CDispatch:
