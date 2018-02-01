@@ -13,6 +13,7 @@ class Creon:
     __utils__ = None
     __trades__ = None
     __trade_actions__ = {'sell': '1', 'buy': '2'}
+    __markets__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -44,6 +45,12 @@ class Creon:
         return self.__trades__
 
     @property
+    def markets(self) -> client.CDispatch:
+        if self.__markets__ is None:
+            self.__markets__ = client.Dispatch('DsCbo1.StockMst')
+        return self.__markets__
+
+    @property
     def accounts(self) -> tuple:
         return self.utils.AccountNumber
 
@@ -68,6 +75,34 @@ class Creon:
             return tuple(results)
         return codes
 
+    def get_price_data(self, code: str) -> dict:
+        self.markets.SetInputValue(0, code)
+        self.markets.BlockRequest()
+
+        if self.markets.GetDibStatus() != 0:
+            self.__logger__.warning(self.markets.GetDibMsg1())
+            return {}
+
+        return {
+            'code': self.markets.GetHeaderValue(0),
+            'name': self.markets.GetHeaderValue(1),
+            'time': self.markets.GetHeaderValue(4),
+            'diff': self.markets.GetHeaderValue(12),
+            'price': self.markets.GetHeaderValue(13),
+            'close_price': self.markets.GetHeaderValue(11),
+            'high_price': self.markets.GetHeaderValue(14),
+            'low_price': self.markets.GetHeaderValue(15),
+            'offer': self.markets.GetHeaderValue(16),
+            'bid': self.markets.GetHeaderValue(17),
+            'volume': self.markets.GetHeaderValue(18),
+            'volume_price': self.markets.GetHeaderValue(19),
+            'expect_flag': self.markets.GetHeaderValue(58),
+            'expect_price': self.markets.GetHeaderValue(55),
+            'expect_diff': self.markets.GetHeaderValue(56),
+            'expect_volume': self.markets.GetHeaderValue(57),
+        }
+
+
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.SetInputValue(0, self.__trade_actions__[action.lower()])
         self.trades.SetInputValue(1, account)
@@ -81,7 +116,7 @@ class Creon:
         self.trades.BlockRequest()
 
         if self.trades.GetDibStatus() != 0:
-            self.__loger__.warning(self.trades.GetDibMsg1())
+            self.__logger__.warning(self.trades.GetDibMsg1())
             return False
         return True
 
