@@ -99,9 +99,8 @@ class Creon:
             'expect_flag': self.markets.GetHeaderValue(58),
             'expect_price': self.markets.GetHeaderValue(55),
             'expect_diff': self.markets.GetHeaderValue(56),
-            'expect_volume': self.markets.GetHeaderValue(57),
+            'expect_volume': self.markets.GetHeaderValue(57)
         }
-
 
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.SetInputValue(0, self.__trade_actions__[action.lower()])
