@@ -14,6 +14,7 @@ class Creon:
     __trades__ = None
     __trade_actions__ = {'sell': '1', 'buy': '2'}
     __markets__ = None
+    __wallets__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -49,6 +50,12 @@ class Creon:
         if self.__markets__ is None:
             self.__markets__ = client.Dispatch('DsCbo1.StockMst')
         return self.__markets__
+
+    @property
+    def wallets(self) -> client.CDispatch:
+        if self.__wallets__ is None:
+            self.__wallets__ = client.Dispatch('CpTrade.CpTd6033')
+        return self.__wallets__
 
     @property
     def accounts(self) -> tuple:
@@ -101,6 +108,28 @@ class Creon:
             'expect_diff': self.markets.GetHeaderValue(56),
             'expect_volume': self.markets.GetHeaderValue(57)
         }
+
+    def get_holding_stocks(self, account: str, flag: str, count: int = 50):
+        self.wallets.SetInputValue(0, account)
+        self.wallets.SetInputValue(1, flag)
+        self.wallets.SetInputValue(2, count)
+
+        self.wallets.BlockRequest()
+        if self.wallets.GetDibStatus() != 0:
+            self.__logger__.warning(self.wallets.GetDibMsg1())
+            return []
+
+        stocks = []
+        for index in range(self.wallets.GetHeaderValue(7)):
+            stocks.append({
+                'code': self.wallets.GetDataValue(12, index),
+                'name': self.wallets.GetDataValue(0, index),
+                'quantity': self.wallets.GetDataValue(7, index),
+                'bought_price': self.wallets.GetDataValue(17, index),
+                'expect_price': self.wallets.GetDataValue(9, index),
+                'expect_profit': self.wallets.GetDataValue(11, index)
+            })
+        return stocks
 
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.SetInputValue(0, self.__trade_actions__[action.lower()])
