@@ -1,3 +1,4 @@
+from re import sub as re_sub
 from time import sleep
 
 from pyautogui import typewrite, press
@@ -23,3 +24,7 @@ def run_creon_plus(username: str, password: str, certification_password: str, st
     certification_password_input.Click()
     certification_password_input.TypeKeys(certification_password)
     press('enter')
+
+
+def snake_to_camel(value):
+    return ''.join(x.capitalize() or '_' for x in value.split('_'))
