@@ -1,3 +1,4 @@
+from ctypes import windll
 from logging import Logger
 from os import environ
 
@@ -19,7 +20,7 @@ class COMWrapper:
             return self.com.__getattr__(snake_to_camel(item))
 
     def block_request(self):
-        self.com.BlockRequest
+        self.com.BlockRequest()
 
     def get_dib_msg1(self):
         return self.com.get_dib_msg1()
@@ -66,7 +67,15 @@ class Creon:
     def utils(self) -> COMWrapper:
         if self.__utils__ is None:
             self.__utils__ = COMWrapper('CpTrade.CpTdUtil')
-            self.__utils__.TradeInit()
+            try:
+                self.__utils__.TradeInit()
+            except BaseException as e:  # to catch pywintypes.error
+                if not windll.shell32.IsUserAnAdmin():
+                    raise PermissionError("관리자 권한으로 실행시켜야 됨") from None
+                    # TODO: 에러메세지 형식 통일
+                else:
+                    raise e
+
         return self.__utils__
 
     @property
