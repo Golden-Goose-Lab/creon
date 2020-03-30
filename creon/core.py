@@ -202,3 +202,6 @@ class Creon:
 
     def code_to_name(self, code: str):
         return self.stock_code.code_to_name(code)
+
+    def name_to_code(self, name: str):
+        return self.stock_code.name_to_code(name)

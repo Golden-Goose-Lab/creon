@@ -1,13 +1,16 @@
+from pprint import pprint
+
 from creon.core import Creon
 
 
 def main():
     creon = Creon()
-    stock_code = 'A005930'
-    name = creon.code_to_name(stock_code)
-    print(name)
+    name = '삼성전자'
+    code = creon.name_to_code(name)
+    # name = creon.code_to_name(code)
+    pprint(creon.get_price_data(code))
 
-    # TODO: 가격 가져오는 동작 구현
+    # TODO: 시간대 별 조회 구현
 
 
 if __name__ == '__main__':
