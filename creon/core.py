@@ -46,6 +46,7 @@ class Creon:
     __trade_actions__ = {'sell': '1', 'buy': '2'}
     __markets__ = None
     __wallets__ = None
+    __stock_code__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -95,6 +96,12 @@ class Creon:
         if self.__wallets__ is None:
             self.__wallets__ = COMWrapper('CpTrade.CpTd6033')
         return self.__wallets__
+
+    @property
+    def stock_code(self):
+        if self.__stock_code__ is None:
+            self.__stock_code__ = COMWrapper("CpUtil.CpStockCode")
+        return self.__stock_code__
 
     @property
     def accounts(self) -> tuple:
@@ -192,3 +199,6 @@ class Creon:
 
     def sell(self, account: str, code: str, quantity: int, price: int, flag: str) -> bool:
         return self._order(account, code, quantity, price, flag, 'sell')
+
+    def code_to_name(self, code: str):
+        return self.stock_code.code_to_name(code)
