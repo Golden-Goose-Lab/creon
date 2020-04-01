@@ -2,8 +2,8 @@ from re import sub as re_sub
 from time import sleep
 
 from pyautogui import typewrite, press
-from pywinauto import Application, timings
-from pywinauto.findwindows import find_window
+# from pywinauto import Application, timings
+# from pywinauto.findwindows import find_window
 
 
 def run_creon_plus(username: str, password: str, certification_password: str, starter_path: str):

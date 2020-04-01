@@ -1,4 +1,8 @@
 from ctypes import windll
+from datetime import (
+    datetime,
+    timedelta,
+)
 from logging import Logger
 from os import environ
 
@@ -47,6 +51,7 @@ class Creon:
     __markets__ = None
     __wallets__ = None
     __stock_code__ = None
+    __chart__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -102,6 +107,12 @@ class Creon:
         if self.__stock_code__ is None:
             self.__stock_code__ = COMWrapper("CpUtil.CpStockCode")
         return self.__stock_code__
+
+    @property
+    def chart(self):
+        if self.__chart__ is None:
+            self.__chart__ = COMWrapper("CpSysDib.StockChart")
+        return self.__chart__
 
     @property
     def accounts(self) -> tuple:
@@ -177,6 +188,61 @@ class Creon:
             })
         return stocks
 
+    def get_chart_data(self, code: str, start: datetime, end: datetime, period_unit: int):
+        """
+        # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=288&seq=102&page=2&searchString=&p=&v=&m=
+        :param code: 종목 코드
+        :param start:
+        :param end:
+        :param period_unit: 조회 단위 (분)
+        :return:
+
+        creon에서는 최근~과거 꼴로 조회하지만 일반적으로 범위를 생각할 때 오름차순으로 생각하므로(과거~최근) 순서를 바꿈
+        """
+
+        now = datetime.now()
+        if start > now or end > now:
+            raise ValueError("Invalid date range: start or end time is future")
+        elif start > end:
+            raise ValueError("Invalid date range: start({}) should be earlier than end({})".format(start, end))
+        # TODO: Categorize exception
+
+        self.chart.set_input_value(0, code)
+        self.chart.set_input_value(1, ord('2'))  # 갯수로 받아오는 것. '1'(기간)은 일봉만 지원
+        self.chart.set_input_value(2, int(end.strftime("%Y%m%d")))  # 요청종료일 (가장 최근)
+        self.chart.set_input_value(3, int(start.strftime("%Y%m%d")))  # 요청시작일
+        diff: timedelta = end - start
+        count = diff.total_seconds() / 60 / period_unit
+        if count > 2856:
+            raise ValueError("Too big request, increase period_unit or reduce date range")
+        self.chart.set_input_value(4, count)  # 요청갯수, 최대 2856 건
+        request_items = ("date", "time", "open_price", "high_price", "low_price", "close_price")
+        item_pair = {
+            "date": 0, "time": 1, "open_price": 2, "high_price": 3, "low_price": 4, "close_price": 5,
+        }
+        self.chart.set_input_value(5, [item_pair.get(key) for key in request_items])
+        self.chart.set_input_value(6, ord("m"))  # '차트 주기 - 분/틱
+        self.chart.set_input_value(7, 1)  # 분틱차트 주기
+        self.chart.set_input_value(8, ord('0'))  # 갭보정여부, 0: 무보정
+        self.chart.set_input_value(9, ord('1'))  # 수정주가여부, 1: 수정주가 사용
+
+        self.chart.block_request()
+        if self.chart.get_dib_status() != 0:
+            self.__logger__.warning(self.chart.get_dib_msg1())
+            return []
+        for i in range(0, 10):
+            res = self.chart.get_header_value(i)
+            print(f"{i}: {res}", end=" | ")
+        print()
+        chart_data = []
+        for index in range(self.chart.get_header_value(3)):
+            row = {}
+            for key in request_items:
+                item_const = item_pair[key]
+                row[key] = self.chart.get_data_value(item_const, index)
+            chart_data.append(row)
+        return chart_data
+
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.set_input_value(0, self.__trade_actions__[action.lower()])
         self.trades.set_input_value(1, account)
@@ -184,10 +250,12 @@ class Creon:
         self.trades.set_input_value(3, code)
         self.trades.set_input_value(4, quantity)
         self.trades.set_input_value(5, price)
-        self.trades.set_input_value(7, "0")
+        self.trades.set_input_value(7, "0")  # 주문 조건 구분 코드, 0: 기본 1: IOC 2:FOK
         self.trades.set_input_value(8, "01")
 
         self.trades.block_request()
+        rqStatus = self.trades.GetDibStatus()
+        rqRet = self.trades.GetDibMsg1()
 
         if self.trades.get_dib_status() != 0:
             self.__logger__.warning(self.trades.get_dib_msg1())
