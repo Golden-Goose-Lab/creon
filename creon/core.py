@@ -5,10 +5,14 @@ from datetime import (
 )
 from logging import Logger
 from os import environ
+from typing import (
+    List,
+)
 
 from psutil import process_iter
 from win32com import client
 
+from creon.types import Candle
 from creon.utils import run_creon_plus, snake_to_camel
 
 
@@ -43,7 +47,6 @@ class COMWrapper:
 
 
 class Creon:
-
     __codes__ = None
     __utils__ = None
     __trades__ = None
@@ -188,14 +191,19 @@ class Creon:
             })
         return stocks
 
-    def get_chart_data(self, code: str, start: datetime, end: datetime, period_unit: int):
+    def get_chart_data(
+            self, code: str,
+            start: datetime, end: datetime, period_unit: int,
+            fill_gap=False, use_adjusted_price=True):
         """
         # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=288&seq=102&page=2&searchString=&p=&v=&m=
         :param code: 종목 코드
         :param start:
         :param end:
         :param period_unit: 조회 단위 (분)
-        :return:
+        :param fill_gap: 갭보정 여부
+        :param use_adjusted_price: 수정주가 사용여부
+        :return: List[Candle]
 
         creon에서는 최근~과거 꼴로 조회하지만 일반적으로 범위를 생각할 때 오름차순으로 생각하므로(과거~최근) 순서를 바꿈
         """
@@ -211,8 +219,12 @@ class Creon:
         self.chart.set_input_value(1, ord('2'))  # 갯수로 받아오는 것. '1'(기간)은 일봉만 지원
         self.chart.set_input_value(2, int(end.strftime("%Y%m%d")))  # 요청종료일 (가장 최근)
         self.chart.set_input_value(3, int(start.strftime("%Y%m%d")))  # 요청시작일
-        diff: timedelta = end - start
-        count = diff.total_seconds() / 60 / period_unit
+        # TODO: count 자체를 줄이기 (장 시간 감안해서 범위 산정 등)
+        # 현재는 장 마감 시간(동시호가 발동 이전) 기준으로
+        market_end = datetime(start.year, start.month, start.day, 15, 21, 0)
+        diff: timedelta = market_end - start
+        count = diff.total_seconds() // (period_unit * 60)
+        count += 1
         if count > 2856:
             raise ValueError("Too big request, increase period_unit or reduce date range")
         self.chart.set_input_value(4, count)  # 요청갯수, 최대 2856 건
@@ -221,27 +233,36 @@ class Creon:
             "date": 0, "time": 1, "open_price": 2, "high_price": 3, "low_price": 4, "close_price": 5,
         }
         self.chart.set_input_value(5, [item_pair.get(key) for key in request_items])
-        self.chart.set_input_value(6, ord("m"))  # '차트 주기 - 분/틱
-        self.chart.set_input_value(7, 1)  # 분틱차트 주기
-        self.chart.set_input_value(8, ord('0'))  # 갭보정여부, 0: 무보정
-        self.chart.set_input_value(9, ord('1'))  # 수정주가여부, 1: 수정주가 사용
+        self.chart.set_input_value(6, ord("m"))  # '차트 주기 ('D': 일, 'W': 주, 'M': 월, 'm': 분, 'T': 틱)
+        self.chart.set_input_value(7, period_unit)  # 분/틱차트 주기
+        fill_gap = '1' if fill_gap else '0'
+        self.chart.set_input_value(8, ord(fill_gap))  # 갭보정여부, 0: 무보정
+        use_adjusted_price = '1' if use_adjusted_price else '0'
+        self.chart.set_input_value(9, use_adjusted_price)  # 수정주가여부, 1: 수정주가 사용
 
         self.chart.block_request()
         if self.chart.get_dib_status() != 0:
             self.__logger__.warning(self.chart.get_dib_msg1())
             return []
-        for i in range(0, 10):
-            res = self.chart.get_header_value(i)
-            print(f"{i}: {res}", end=" | ")
-        print()
-        chart_data = []
+
+        chart_data: List[Candle] = []
         for index in range(self.chart.get_header_value(3)):
-            row = {}
+            tmp_dict = {}
             for key in request_items:
                 item_const = item_pair[key]
-                row[key] = self.chart.get_data_value(item_const, index)
-            chart_data.append(row)
-        return chart_data
+                value = self.chart.get_data_value(item_const, index)
+                tmp_dict[key] = value
+            tmp_dict["end_time"] = datetime.strptime(f'{tmp_dict["date"]}-{tmp_dict["time"]}', "%Y%m%d-%H%M")
+            # if chart_data and (chart_data[-1]["end_time"].hour == 15 and chart_data[-1]["end_time"].minute == 30):
+            # TODO: Resolve type error
+            #     chart_data[-1]["start_time"] = tmp_dict["end_time"]
+            tmp_dict["start_time"] = tmp_dict["end_time"] - timedelta(minutes=period_unit)
+            if tmp_dict["end_time"] > end or tmp_dict["start_time"] < start:
+                continue
+            del tmp_dict["date"]
+            del tmp_dict["time"]
+            chart_data.append(tmp_dict)
+        return list(reversed(chart_data))
 
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.set_input_value(0, self.__trade_actions__[action.lower()])
