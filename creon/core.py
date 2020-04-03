@@ -1,4 +1,5 @@
 from ctypes import windll
+from datetime import datetime, timedelta
 from logging import Logger
 from os import environ
 
@@ -47,6 +48,7 @@ class Creon:
     __markets__ = None
     __wallets__ = None
     __stock_code__ = None
+    __chart__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -104,6 +106,12 @@ class Creon:
         return self.__stock_code__
 
     @property
+    def chart(self):
+        if self.__chart__ is None:
+            self.__chart__ = COMWrapper("CpSysDib.StockChart")
+        return self.__chart__
+
+    @property
     def accounts(self) -> tuple:
         return self.utils.account_number
 
@@ -154,6 +162,59 @@ class Creon:
             'expect_diff': self.markets.get_header_value(56),
             'expect_volume': self.markets.get_header_value(57)
         }
+
+    def fetch_ohlcv(
+            self, code: str, timeframe: str, since: datetime, limit: int,
+            fill_gap=False, use_adjusted_price=True):
+        """
+        https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=288&seq=102&page=2&searchString=&p=&v=&m=
+
+        :param code: 종목 코드
+        :param timeframe:
+        :param since:
+        :param limit:
+        :param fill_gap: 갭보정 여부
+        :param use_adjusted_price: 수정주가 사용여부
+        :return:
+        """
+        if limit > 2856:
+            raise ValueError("Too big request, increase period_unit or reduce date range")
+
+        timeframe = timedelta(days=1)  # TODO:
+        until = since - timeframe
+        request_items = ("date", "time", "open_price", "high_price", "low_price", "close_price")
+        item_pair = {
+            "date": 0, "time": 1, "open_price": 2, "high_price": 3, "low_price": 4, "close_price": 5,
+        }
+        timeframe = 'D'  # TODO:
+        min_or_tick_interval = 1
+        fill_gap = '1' if fill_gap else '0'
+        use_adjusted_price = '1' if use_adjusted_price else '0'
+
+        self.chart.set_input_value(0, code)
+        self.chart.set_input_value(1, ord('2'))  # 갯수로 받아오는 것. '1'(기간)은 일봉만 지원
+        self.chart.set_input_value(2, int(until.strftime("%Y%m%d")))  # 요청종료일 (가장 최근)
+        self.chart.set_input_value(3, int(since.strftime("%Y%m%d")))  # 요청시작일
+        self.chart.set_input_value(4, limit)  # 요청갯수, 최대 2856 건
+        self.chart.set_input_value(5, [item_pair.get(key) for key in request_items])
+        self.chart.set_input_value(6, ord(timeframe))  # '차트 주기 ('D': 일, 'W': 주, 'M': 월, 'm': 분, 'T': 틱)
+        self.chart.set_input_value(7, min_or_tick_interval)  # 분/틱차트 주기
+        self.chart.set_input_value(8, ord(fill_gap))  # 갭보정여부, 0: 무보정
+        self.chart.set_input_value(9, use_adjusted_price)  # 수정주가여부, 1: 수정주가 사용
+        self.chart.block_request()
+        if self.chart.get_dib_status() != 0:
+            self.__logger__.warning(self.chart.get_dib_msg1())
+            return []
+
+        chart_data = []
+        for index in range(self.chart.get_header_value(3)):
+            tmp_dict = {}
+            for key in request_items:
+                item_const = item_pair[key]
+                value = self.chart.get_data_value(item_const, index)
+                tmp_dict[key] = value
+            chart_data.append(tmp_dict)
+        return list(reversed(chart_data))
 
     def get_holding_stocks(self, account: str, flag: str, count: int = 50) -> list:
         self.wallets.set_input_value(0, account)
