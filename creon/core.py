@@ -1,3 +1,4 @@
+from ctypes import windll
 from logging import Logger
 from os import environ
 
@@ -19,7 +20,7 @@ class COMWrapper:
             return self.com.__getattr__(snake_to_camel(item))
 
     def block_request(self):
-        self.com.BlockRequest
+        self.com.BlockRequest()
 
     def get_dib_msg1(self):
         return self.com.get_dib_msg1()
@@ -45,6 +46,7 @@ class Creon:
     __trade_actions__ = {'sell': '1', 'buy': '2'}
     __markets__ = None
     __wallets__ = None
+    __stock_code__ = None
     __logger__ = Logger(__name__)
 
     def __init__(self):
@@ -66,7 +68,15 @@ class Creon:
     def utils(self) -> COMWrapper:
         if self.__utils__ is None:
             self.__utils__ = COMWrapper('CpTrade.CpTdUtil')
-            self.__utils__.TradeInit()
+            try:
+                self.__utils__.TradeInit()
+            except BaseException as e:  # to catch pywintypes.error
+                if not windll.shell32.IsUserAnAdmin():
+                    raise PermissionError("관리자 권한으로 실행시켜야 됨") from None
+                    # TODO: 에러메세지 형식 통일
+                else:
+                    raise e
+
         return self.__utils__
 
     @property
@@ -86,6 +96,12 @@ class Creon:
         if self.__wallets__ is None:
             self.__wallets__ = COMWrapper('CpTrade.CpTd6033')
         return self.__wallets__
+
+    @property
+    def stock_code(self):
+        if self.__stock_code__ is None:
+            self.__stock_code__ = COMWrapper("CpUtil.CpStockCode")
+        return self.__stock_code__
 
     @property
     def accounts(self) -> tuple:
@@ -183,3 +199,9 @@ class Creon:
 
     def sell(self, account: str, code: str, quantity: int, price: int, flag: str) -> bool:
         return self._order(account, code, quantity, price, flag, 'sell')
+
+    def code_to_name(self, code: str):
+        return self.stock_code.code_to_name(code)
+
+    def name_to_code(self, name: str):
+        return self.stock_code.name_to_code(name)

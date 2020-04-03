@@ -26,5 +26,5 @@ def run_creon_plus(username: str, password: str, certification_password: str, st
     press('enter')
 
 
-def snake_to_camel(value):
+def snake_to_camel(value: str) -> str:
     return ''.join(x.capitalize() or '_' for x in value.split('_'))
