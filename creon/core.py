@@ -190,8 +190,9 @@ class Creon:
                 'expect_profit': self.wallets.get_data_value(11, index)
             })
         return stocks
+    def fetch_ohlcv(self, code, timeframe, since, limit, params):
 
-    def get_chart_data(
+    def fetch_chart_data(
             self, code: str,
             start: datetime, end: datetime, period_unit: int,
             fill_gap=False, use_adjusted_price=True):
@@ -225,6 +226,7 @@ class Creon:
         diff: timedelta = market_end - start
         count = diff.total_seconds() // (period_unit * 60)
         count += 1
+        print(f"count: {count}")
         if count > 2856:
             raise ValueError("Too big request, increase period_unit or reduce date range")
         self.chart.set_input_value(4, count)  # 요청갯수, 최대 2856 건
@@ -253,9 +255,9 @@ class Creon:
                 value = self.chart.get_data_value(item_const, index)
                 tmp_dict[key] = value
             tmp_dict["end_time"] = datetime.strptime(f'{tmp_dict["date"]}-{tmp_dict["time"]}', "%Y%m%d-%H%M")
-            # if chart_data and (chart_data[-1]["end_time"].hour == 15 and chart_data[-1]["end_time"].minute == 30):
-            # TODO: Resolve type error
-            #     chart_data[-1]["start_time"] = tmp_dict["end_time"]
+            if chart_data and (chart_data[-1]["end_time"].hour == 15 and chart_data[-1]["end_time"].minute == 30):
+                # TODO: Resolve type error
+                chart_data[-1]["start_time"] = tmp_dict["end_time"]
             tmp_dict["start_time"] = tmp_dict["end_time"] - timedelta(minutes=period_unit)
             if tmp_dict["end_time"] > end or tmp_dict["start_time"] < start:
                 continue

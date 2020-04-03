@@ -14,13 +14,13 @@ def main():
     start = datetime(2020, 4, 1, 15, 14)
     end = datetime(2020, 4, 1, 15, 16)
     period_unit = 1  # 1분봉
-    results = creon.get_chart_data(code, start, end, period_unit)
+    results = creon.fetch_chart_data(code, start, end, period_unit)
     # pprint(results, width=120)
 
     start = datetime(2020, 4, 1, 9, 0)
     end = datetime(2020, 4, 1, 16, 0)
     period_unit = 60  # 일봉
-    results = creon.get_chart_data(code, start, end, period_unit)
+    results = creon.fetch_chart_data(code, start, end, period_unit)
     pprint(results)
 
     # 3년, 1년, 한달, 일주일, 어제
