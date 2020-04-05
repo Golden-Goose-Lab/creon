@@ -1,3 +1,4 @@
+from calendar import Calendar
 from ctypes import windll
 from datetime import datetime, timedelta
 from logging import Logger
@@ -6,7 +7,8 @@ from os import environ
 from psutil import process_iter
 from win32com import client
 
-from creon.utils import run_creon_plus, snake_to_camel
+from creon.constants import TimeFrameUnit
+from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta
 
 
 class COMWrapper:
@@ -40,7 +42,6 @@ class COMWrapper:
 
 
 class Creon:
-
     __codes__ = None
     __utils__ = None
     __trades__ = None
@@ -159,7 +160,7 @@ class Creon:
         }
 
     def fetch_ohlcv(
-            self, code: str, timeframe: str, since: datetime, limit: int,
+            self, code: str, timeframe: tuple, since: datetime, limit: int,
             fill_gap=False, use_adjusted_price=True):
         """
         https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=288&seq=102&page=2&searchString=&p=&v=&m=
@@ -175,14 +176,15 @@ class Creon:
         if limit > 2856:
             raise ValueError("Too big request, increase period_unit or reduce date range")
 
-        timeframe = timedelta(days=1)  # TODO:
-        until = since - timeframe
-        request_items = ("date", "time", "open_price", "high_price", "low_price", "close_price")
+        until = since + (timeframe_to_timedelta(timeframe) * limit)
+        request_items = (
+            "date", "time", "open_price", "high_price", "low_price", "close_price", "volume",
+        )
         item_pair = {
             "date": 0, "time": 1, "open_price": 2, "high_price": 3, "low_price": 4, "close_price": 5,
+            "volume": 8, "volume_price": 9,
         }
-        timeframe = 'D'  # TODO:
-        min_or_tick_interval = 1
+        interval, unit = timeframe
         fill_gap = '1' if fill_gap else '0'
         use_adjusted_price = '1' if use_adjusted_price else '0'
 
@@ -192,24 +194,47 @@ class Creon:
         self.chart.set_input_value(3, int(since.strftime("%Y%m%d")))  # 요청시작일
         self.chart.set_input_value(4, limit)  # 요청갯수, 최대 2856 건
         self.chart.set_input_value(5, [item_pair.get(key) for key in request_items])
-        self.chart.set_input_value(6, ord(timeframe))  # '차트 주기 ('D': 일, 'W': 주, 'M': 월, 'm': 분, 'T': 틱)
-        self.chart.set_input_value(7, min_or_tick_interval)  # 분/틱차트 주기
+        self.chart.set_input_value(6, ord(unit.value))  # '차트 주기 ('D': 일, 'W': 주, 'M': 월, 'm': 분, 'T': 틱)
+        self.chart.set_input_value(7, interval)  # 분/틱차트 주기
         self.chart.set_input_value(8, ord(fill_gap))  # 갭보정여부, 0: 무보정
         self.chart.set_input_value(9, use_adjusted_price)  # 수정주가여부, 1: 수정주가 사용
+        self.chart.set_input_value(10, '1')  # 거래량 구분
+        # '1': 시간외거래량모두포함, '2': 장종료시간외거래량만포함, '3': 시간외거래량모두제외, '4': 장전시간외거래량만포함
+
         self.chart.block_request()
         if self.chart.get_dib_status() != 0:
             self.__logger__.warning(self.chart.get_dib_msg1())
             return []
 
         chart_data = []
-        for index in range(self.chart.get_header_value(3)):
-            tmp_dict = {}
-            for key in request_items:
-                item_const = item_pair[key]
-                value = self.chart.get_data_value(item_const, index)
-                tmp_dict[key] = value
-            chart_data.append(tmp_dict)
-        return list(reversed(chart_data))
+        for i in range(self.chart.get_header_value(3)):
+            tmp_dict = {
+                "date": self.chart.get_data_value(0, i),
+                "time": self.chart.get_data_value(1, i),
+                "open": self.chart.get_data_value(2, i),
+                "high": self.chart.get_data_value(3, i),
+                "low": self.chart.get_data_value(4, i),
+                "close": self.chart.get_data_value(5, i),
+                "volume": self.chart.get_data_value(6, i),
+            }
+            if unit == TimeFrameUnit.MONTH:
+                pass
+            elif unit == TimeFrameUnit.WEEK:
+                date = str(tmp_dict["date"])
+                year = int(date[:4])
+                month = int(date[4:6])
+                nth_week = int(date[6])
+                nth_friday = Calendar(0).monthdatescalendar(year, month)[nth_week][4]
+                tmp_dict["date"] = datetime.strptime(str(nth_friday), "%Y-%m-%d")
+            elif tmp_dict["time"] == 0:
+                tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}', "%Y%m%d")
+            else:
+                tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}-{tmp_dict["time"]}', "%Y%m%d-%H%M")
+
+            del tmp_dict["time"]
+            chart_data.insert(0, tmp_dict)
+
+        return chart_data
 
     def get_holding_stocks(self, account: str, flag: str, count: int = 50) -> list:
         self.wallets.set_input_value(0, account)

@@ -1,9 +1,10 @@
-from re import sub as re_sub
+from datetime import timedelta
 from time import sleep
 
 from pyautogui import typewrite, press
 from pywinauto import Application, timings
 from pywinauto.findwindows import find_window
+from creon.constants import TimeFrameUnit
 
 
 def run_creon_plus(username: str, password: str, certification_password: str, starter_path: str):
@@ -28,3 +29,19 @@ def run_creon_plus(username: str, password: str, certification_password: str, st
 
 def snake_to_camel(value: str) -> str:
     return ''.join(x.capitalize() or '_' for x in value.split('_'))
+
+
+def timeframe_to_timedelta(timeframe: tuple) -> timedelta:
+    amount, unit = timeframe
+    if unit in (TimeFrameUnit.MONTH, TimeFrameUnit.TICK):
+        raise ValueError("Cannot convert month or tick to timedelta")
+    elif unit == TimeFrameUnit.WEEK:
+        time_delta = timedelta(weeks=1)
+    elif unit == TimeFrameUnit.DAY:
+        time_delta = timedelta(days=amount)
+    elif unit == TimeFrameUnit.MINUTE:
+        time_delta = timedelta(minutes=amount)
+    else:
+        raise ValueError('timeframe unit {} is not supported'.format(unit))
+
+    return time_delta
