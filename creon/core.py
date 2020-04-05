@@ -52,6 +52,9 @@ class Creon:
     __logger__ = Logger(__name__)
 
     def __init__(self):
+        if not windll.shell32.IsUserAnAdmin():
+            raise PermissionError("Run as administrator")
+
         if 'CpStart.exe' not in [p.name() for p in process_iter()]:
             run_creon_plus(
                 environ.get('CREON_USERNAME', ''),
@@ -70,15 +73,7 @@ class Creon:
     def utils(self) -> COMWrapper:
         if self.__utils__ is None:
             self.__utils__ = COMWrapper('CpTrade.CpTdUtil')
-            try:
-                self.__utils__.TradeInit()
-            except BaseException as e:  # to catch pywintypes.error
-                if not windll.shell32.IsUserAnAdmin():
-                    raise PermissionError("관리자 권한으로 실행시켜야 됨") from None
-                    # TODO: 에러메세지 형식 통일
-                else:
-                    raise e
-
+            self.__utils__.TradeInit()
         return self.__utils__
 
     @property
