@@ -176,7 +176,21 @@ class Creon:
         if limit > 2856:
             raise ValueError("Too big request, increase period_unit or reduce date range")
 
-        until = since + (timeframe_to_timedelta(timeframe) * limit)
+        timeframe_timedelta = timeframe_to_timedelta(timeframe)
+        if timeframe[1] == TimeFrameUnit.DAY:
+            until = since + (timeframe_timedelta * limit) - timedelta(minutes=1)
+            # 23시 59분으로 만들기 위해
+        else:
+            until = since + (timeframe_timedelta * limit)
+
+        if timeframe[1] in [TimeFrameUnit.MINUTE, TimeFrameUnit.TICK]:
+            market_end = datetime(since.year, since.month, since.day, 15, 21, 0)
+            diff: timedelta = market_end - since
+            count = int(diff.total_seconds()) // timeframe_timedelta.seconds
+            count += 1
+        else:
+            count = limit
+
         request_items = (
             "date", "time", "open_price", "high_price", "low_price", "close_price", "volume",
         )
@@ -218,7 +232,7 @@ class Creon:
                 "volume": self.chart.get_data_value(6, i),
             }
             if unit == TimeFrameUnit.MONTH:
-                pass
+                raise NotImplementedError()  # TODO
             elif unit == TimeFrameUnit.WEEK:
                 date = str(tmp_dict["date"])
                 year = int(date[:4])
@@ -226,14 +240,22 @@ class Creon:
                 nth_week = int(date[6])
                 nth_friday = Calendar(0).monthdatescalendar(year, month)[nth_week][4]
                 tmp_dict["date"] = datetime.strptime(str(nth_friday), "%Y-%m-%d")
-            elif tmp_dict["time"] == 0:
+                begin = tmp_dict["date"]
+                end = begin + timedelta(weeks=1, hours=23, minutes=59)
+            elif unit == TimeFrameUnit.DAY:
                 tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}', "%Y%m%d")
+                begin = tmp_dict["date"]
+                end = begin + timedelta(hours=23, minutes=59)
             else:
                 tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}-{tmp_dict["time"]}', "%Y%m%d-%H%M")
+                begin = tmp_dict["date"] - timeframe_timedelta
+                end = tmp_dict["date"]
 
             del tmp_dict["time"]
-            chart_data.insert(0, tmp_dict)
 
+            if begin < since or end > until:
+                continue
+            chart_data.insert(0, tmp_dict)
         return chart_data
 
     def get_holding_stocks(self, account: str, flag: str, count: int = 50) -> list:

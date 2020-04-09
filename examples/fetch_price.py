@@ -17,19 +17,22 @@ def main():
     # name = creon.code_to_name(code)
 
     timeframe = (1, TimeFrameUnit.DAY)
-    since = datetime(2020, 4, 1)
-    limit = 1
-    results = creon.fetch_ohlcv(code, timeframe, since, limit)
-    print(f"{name}: 4월 1일")
-    pprint(results)
-    print("-" * 20)
 
-    timeframe = (1, TimeFrameUnit.WEEK)
-    since = datetime(2020, 3, 9)  # Monday
-    limit = 2
-    results = creon.fetch_ohlcv(code, timeframe, since, limit)
-    print(f"{name}: 3월 9일부터 2주")
-    pprint(results)
+    today = datetime(2020, 4, 1)
+    times = (
+        today,
+        today - timedelta(days=1),
+        today - timedelta(weeks=1),
+        today - timedelta(days=30),  # month
+        today - timedelta(days=365),  # year
+    )
+    timeframe = (1, TimeFrameUnit.DAY)
+    limit = 1
+    for since in times:
+        results = creon.fetch_ohlcv(code, timeframe, since, limit)
+        print(f"{name}: {since.month}월 {since.day}일")
+        pprint(results)
+        print("-" * 40)
 
 
 if __name__ == '__main__':
