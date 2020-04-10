@@ -26,7 +26,7 @@ class COMWrapper:
         self.com.BlockRequest()
 
     def get_dib_msg1(self):
-        return self.com.get_dib_msg1()
+        return self.com.GetDibMsg1()
 
     def get_dib_status(self):
         return self.com.GetDibStatus()
