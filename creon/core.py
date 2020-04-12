@@ -3,6 +3,10 @@ from ctypes import windll
 from datetime import datetime, timedelta
 from logging import Logger
 from os import environ
+from typing import (
+    List,
+)
+
 
 from psutil import process_iter
 from win32com import client
@@ -11,6 +15,7 @@ from creon.constants import (
     TimeFrameUnit,
     AccountFilter,
 )
+from creon.types import Candle
 from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta
 
 
@@ -165,7 +170,7 @@ class Creon:
 
     def fetch_ohlcv(
             self, code: str, timeframe: tuple, since: datetime, limit: int,
-            fill_gap=False, use_adjusted_price=True):
+            fill_gap=False, use_adjusted_price=True) -> List[Candle]:
         """
         https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=288&seq=102&page=2&searchString=&p=&v=&m=
 
@@ -182,10 +187,10 @@ class Creon:
 
         timeframe_timedelta = timeframe_to_timedelta(timeframe)
         if timeframe[1] == TimeFrameUnit.DAY:
-            until = since + (timeframe_timedelta * limit) - timedelta(minutes=1)
+            to = since + (timeframe_timedelta * limit) - timedelta(minutes=1)
             # 23시 59분으로 만들기 위해
         else:
-            until = since + (timeframe_timedelta * limit)
+            to = since + (timeframe_timedelta * limit)
 
         if timeframe[1] in [TimeFrameUnit.MINUTE, TimeFrameUnit.TICK]:
             market_end = datetime(since.year, since.month, since.day, 15, 21, 0)
@@ -194,7 +199,7 @@ class Creon:
             count += 1
         else:
             count = limit
-
+        count += 1  # 장시작/마감시간 고려하면 하나 더 얻어와야함
         request_items = (
             "date", "time", "open_price", "high_price", "low_price", "close_price", "volume",
         )
@@ -208,9 +213,9 @@ class Creon:
 
         self.chart.set_input_value(0, code)
         self.chart.set_input_value(1, ord('2'))  # 갯수로 받아오는 것. '1'(기간)은 일봉만 지원
-        self.chart.set_input_value(2, int(until.strftime("%Y%m%d")))  # 요청종료일 (가장 최근)
+        self.chart.set_input_value(2, int(to.strftime("%Y%m%d")))  # 요청종료일 (가장 최근)
         self.chart.set_input_value(3, int(since.strftime("%Y%m%d")))  # 요청시작일
-        self.chart.set_input_value(4, limit)  # 요청갯수, 최대 2856 건
+        self.chart.set_input_value(4, count)  # 요청갯수, 최대 2856 건
         self.chart.set_input_value(5, [item_pair.get(key) for key in request_items])
         self.chart.set_input_value(6, ord(unit.value))  # '차트 주기 ('D': 일, 'W': 주, 'M': 월, 'm': 분, 'T': 틱)
         self.chart.set_input_value(7, interval)  # 분/틱차트 주기
@@ -225,8 +230,9 @@ class Creon:
             return []
 
         chart_data = []
-        for i in range(self.chart.get_header_value(3)):
-            tmp_dict = {
+        row_cnt = self.chart.get_header_value(3)
+        for i in range(row_cnt):
+            resp = {
                 "date": self.chart.get_data_value(0, i),
                 "time": self.chart.get_data_value(1, i),
                 "open": self.chart.get_data_value(2, i),
@@ -235,31 +241,43 @@ class Creon:
                 "close": self.chart.get_data_value(5, i),
                 "volume": self.chart.get_data_value(6, i),
             }
+            candle: Candle = Candle(
+                start_time=datetime(1970, 1, 1),
+                end_time=datetime(1970, 1, 1),
+                open_price=resp["open"],
+                high_price=resp["high"],
+                low_price=resp["low"],
+                close_price=resp["close"],
+                volume=resp["volume"],
+            )
             if unit == TimeFrameUnit.MONTH:
                 raise NotImplementedError()  # TODO
             elif unit == TimeFrameUnit.WEEK:
-                date = str(tmp_dict["date"])
+                date = str(resp["date"])
                 year = int(date[:4])
                 month = int(date[4:6])
                 nth_week = int(date[6])
                 nth_friday = Calendar(0).monthdatescalendar(year, month)[nth_week][4]
-                tmp_dict["date"] = datetime.strptime(str(nth_friday), "%Y-%m-%d")
-                begin = tmp_dict["date"]
-                end = begin + timedelta(weeks=1, hours=23, minutes=59)
+                candle["start_time"] = datetime.strptime(str(nth_friday), "%Y-%m-%d")
+                candle["end_time"] = candle["start_time"] + timedelta(weeks=1, hours=23, minutes=59)
             elif unit == TimeFrameUnit.DAY:
-                tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}', "%Y%m%d")
-                begin = tmp_dict["date"]
-                end = begin + timedelta(hours=23, minutes=59)
+                candle["start_time"] = datetime.strptime(str(resp["date"]), "%Y%m%d")
+                candle["end_time"] = candle["start_time"] + timedelta(hours=23, minutes=59)
             else:
-                tmp_dict["date"] = datetime.strptime(f'{tmp_dict["date"]}-{tmp_dict["time"]}', "%Y%m%d-%H%M")
-                begin = tmp_dict["date"] - timeframe_timedelta
-                end = tmp_dict["date"]
-
-            del tmp_dict["time"]
-
-            if begin < since or end > until:
-                continue
-            chart_data.insert(0, tmp_dict)
+                candle["end_time"] = datetime.strptime(f'{resp["date"]}-{resp["time"]}', "%Y%m%d-%H%M")
+                if candle["end_time"].hour == 15 and candle["end_time"].minute == 30:
+                    if len(chart_data) > 0:
+                        candle["start_time"] = chart_data[0]["end_time"]
+                    else:
+                        next_date = self.chart.get_data_value(0, i + 1)
+                        next_time = self.chart.get_data_value(1, i + 1)
+                        candle["start_time"] = datetime.strptime(f'{next_date}-{next_time}', "%Y%m%d-%H%M")
+                else:
+                    candle["start_time"] = candle["end_time"] - timeframe_timedelta
+            chart_data.insert(0, candle)
+        for ohlcv in chart_data:
+            if ((ohlcv["start_time"] - timeframe_timedelta) < since) or ohlcv["end_time"] > to:
+                chart_data.remove(ohlcv)
         return chart_data
 
     def get_holding_stocks(self, account: str, flag: str, count: int = 50) -> list:
