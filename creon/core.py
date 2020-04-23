@@ -60,16 +60,16 @@ class Creon:
     __chart__ = None
     __logger__ = Logger(__name__)
 
-    def __init__(self):
+    def __init__(self, username: str = '', password: str = '', cert_password: str = '', path: str = ''):
         if not windll.shell32.IsUserAnAdmin():
             raise PermissionError("Run as administrator")
 
         if 'CpStart.exe' not in [p.name() for p in process_iter()]:
             run_creon_plus(
-                environ.get('CREON_USERNAME', ''),
-                environ.get('CREON_PASSWORD', ''),
-                environ.get('CREON_CERTIFICATION_PASSWORD', ''),
-                environ.get('CREON_PATH', '')
+                username or environ.get('CREON_USERNAME', ''),
+                password or environ.get('CREON_PASSWORD', ''),
+                cert_password or environ.get('CREON_CERTIFICATION_PASSWORD', ''),
+                path or environ.get('CREON_PATH', '')
             )
 
     @property
