@@ -280,13 +280,15 @@ class Creon:
                 chart_data.remove(ohlcv)
         return chart_data
 
-    def get_holding_stocks(self, account: str, flag: str, count: int = 50) -> list:
-        self.wallets.set_input_value(0, account)
+    def get_holding_stocks(self, account_number: str, flag: str, count: int = 50) -> list:
+        # http://money2.daishin.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=176&page=1&searchString=CpTrade.CpTd6033&p=8839&v=8642&m=9508
+        self.wallets.set_input_value(0, account_number)
         self.wallets.set_input_value(1, flag)
         self.wallets.set_input_value(2, count)
 
         self.wallets.block_request()
-        if self.wallets.get_dib_status() != 0:
+        status = self.wallets.get_dib_status()
+        if status != 0:
             self.__logger__.warning(self.wallets.get_dib_msg1())
             return []
 
