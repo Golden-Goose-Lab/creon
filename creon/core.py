@@ -280,7 +280,8 @@ class Creon:
                 chart_data.remove(ohlcv)
         return chart_data
 
-    def get_holding_stocks(self, account_number: str, flag: str, count: int = 50) -> list:
+    def get_holding_stocks(self, account_number: str, flag: str, count: int = 50) -> dict:
+        # TODO: 평가금액과 잔고까지 리턴하므로 함수명 바꿀 것
         # http://money2.daishin.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=176&page=1&searchString=CpTrade.CpTd6033&p=8839&v=8642&m=9508
         self.wallets.set_input_value(0, account_number)
         self.wallets.set_input_value(1, flag)
@@ -291,7 +292,10 @@ class Creon:
         if status != 0:
             self.__logger__.warning(self.wallets.get_dib_msg1())
             return []
-
+        for i in range(13):
+            print(f"{i}: {self.wallets.get_header_value(i)}")
+        expect_valuation = self.wallets.get_header_value(3)
+        remain_deposit = self.wallets.get_header_value(9)
         stocks = []
         for index in range(self.wallets.get_header_value(7)):
             stocks.append({
@@ -302,7 +306,12 @@ class Creon:
                 'expect_price': self.wallets.get_data_value(9, index),
                 'expect_profit': self.wallets.get_data_value(11, index)
             })
-        return stocks
+        result = {
+            "expect_valuation": expect_valuation,
+            "remain_deposit": remain_deposit,
+            "stocks": stocks,
+        }
+        return result
 
     def _order(self, account: str, code: str, quantity: int, price: int, flag: str, action: str) -> bool:
         self.trades.set_input_value(0, self.__trade_actions__[action.lower()])
