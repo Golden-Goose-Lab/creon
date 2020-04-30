@@ -291,9 +291,8 @@ class Creon:
         status = self.wallets.get_dib_status()
         if status != 0:
             self.__logger__.warning(self.wallets.get_dib_msg1())
-            return []
-        for i in range(13):
-            print(f"{i}: {self.wallets.get_header_value(i)}")
+            return {}
+
         expect_valuation = self.wallets.get_header_value(3)
         remain_deposit = self.wallets.get_header_value(9)
         stocks = []
@@ -307,9 +306,9 @@ class Creon:
                 'expect_profit': self.wallets.get_data_value(11, index)
             })
         result = {
-            "expect_valuation": expect_valuation,
-            "remain_deposit": remain_deposit,
-            "stocks": stocks,
+            "total_expect_valuation": expect_valuation,  # 총 평가 금액
+            "remain_deposit": remain_deposit,  # 예수금
+            "stocks": stocks,  # 보유 주식
         }
         return result
 
