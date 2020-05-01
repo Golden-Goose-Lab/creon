@@ -124,6 +124,8 @@ class Creon:
         return self.utils.goods_list(account, account_filter)
 
     def get_all_codes(self, category: str, with_name: bool = False) -> tuple:
+        # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=11&page=1&searchString=GetStock&p=&v=&m=
+        # example: https://money2.creontrade.com/e5/mboard/ptype_basic/plusPDS/DW_Basic_Read.aspx?boardseq=299&seq=39&page=1&searchString=GetStockListByMarket&prd=&lang=&p=8833&v=8639&m=9505
         category = category.lower()
         if category == 'kospi':
             section = 1
@@ -142,6 +144,7 @@ class Creon:
         return codes
 
     def get_price_data(self, code: str) -> dict:
+        # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=285&seq=3&page=4&searchString=%ed%98%84%ec%9e%ac%ea%b0%80&p=&v=&m=
         self.markets.set_input_value(0, code)
         self.markets.block_request()
 
@@ -153,16 +156,16 @@ class Creon:
             'code': self.markets.get_header_value(0),
             'name': self.markets.get_header_value(1),
             'time': self.markets.get_header_value(4),
-            'diff': self.markets.get_header_value(12),
+            'diff': self.markets.get_header_value(12), # 전일대비
             'price': self.markets.get_header_value(13),
             'close_price': self.markets.get_header_value(11),
             'high_price': self.markets.get_header_value(14),
             'low_price': self.markets.get_header_value(15),
-            'offer': self.markets.get_header_value(16),
-            'bid': self.markets.get_header_value(17),
+            'offer': self.markets.get_header_value(16),  # 매도 호가
+            'bid': self.markets.get_header_value(17),  # 매수 호과
             'volume': self.markets.get_header_value(18),
             'volume_price': self.markets.get_header_value(19),
-            'expect_flag': self.markets.get_header_value(58),
+            'expect_flag': self.markets.get_header_value(58), # 예상체결가구분플래그
             'expect_price': self.markets.get_header_value(55),
             'expect_diff': self.markets.get_header_value(56),
             'expect_volume': self.markets.get_header_value(57)
