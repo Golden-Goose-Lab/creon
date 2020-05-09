@@ -1,5 +1,6 @@
 from enum import (
     Enum,
+    IntEnum,
     IntFlag,
 )
 
@@ -19,3 +20,10 @@ class AccountFilter(IntFlag):
     NATIONAL_FUTURE = 2
     EUREX = 16
     INTERNATIONAL_FUTURE = 64
+
+
+class AccountFlag(Enum):
+    # https://money2.daishin.com/E5/WTS/Customer/AccountOpen/DW_JijumOpen.aspx 상품 계좌 섹션 참고
+    COMPREHENSIVE = '01'  # 종합투자상품
+    CONSIGNOR = '10'  # 위탁자 상품
+    FUTURE = '50'  # 선물/옵션
