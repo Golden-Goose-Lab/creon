@@ -15,6 +15,7 @@ from win32com import client
 from creon.constants import (
     TimeFrameUnit,
     AccountFilter,
+    AccountFlag,
 )
 from creon.types import Candle
 from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta
@@ -60,6 +61,8 @@ class Creon:
     __stock_code__ = None
     __chart__ = None
     __logger__ = Logger(__name__)
+
+    _default_account_number = ''
 
     def __init__(self, username: str = '', password: str = '', cert_password: str = '', path: str = ''):
         if not windll.shell32.IsUserAnAdmin():
@@ -125,9 +128,20 @@ class Creon:
     def accounts(self) -> tuple:
         return self.utils.account_number
 
-    def get_account_flags(self, account_num: str, account_filter: AccountFilter) -> tuple:
+    def get_account_flags(self, account_num: str, account_filter: AccountFilter) -> List[AccountFlag]:
         # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=154&page=1&searchString=GoodsList&p=8841&v=8643&m=9505
-        return self.utils.goods_list(account_num, account_filter)
+        goods = self.utils.goods_list(account_num, account_filter)
+        flags = []
+        for g in goods:
+            if g == AccountFlag.COMPREHENSIVE:
+                flags.append(AccountFlag.COMPREHENSIVE)
+            elif g == AccountFlag.CONSIGNOR:
+                flags.append(AccountFlag.CONSIGNOR)
+            elif g == AccountFlag.FUTURE:
+                flags.append(AccountFlag.FUTURE)
+            else:
+                raise ValueError("Unknown account flags")
+        return flags
 
     def get_all_codes(self, category: str, with_name: bool = False) -> tuple:
         # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=11&page=1&searchString=GetStock&p=&v=&m=
@@ -289,11 +303,11 @@ class Creon:
                 chart_data.remove(ohlcv)
         return chart_data
 
-    def get_holding_stocks(self, account_number: str, flag: str, count: int = 50) -> dict:
+    def get_holding_stocks(self, account_number: str, flag: AccountFlag, count: int = 50) -> dict:
         # TODO: 평가금액과 잔고까지 리턴하므로 함수명 바꿀 것
         # http://money2.daishin.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=176&page=1&searchString=CpTrade.CpTd6033&p=8839&v=8642&m=9508
         self.wallets.set_input_value(0, account_number)
-        self.wallets.set_input_value(1, flag)
+        self.wallets.set_input_value(1, flag.value)
         self.wallets.set_input_value(2, count)
 
         self.wallets.block_request()
@@ -338,11 +352,11 @@ class Creon:
             return False
         return True
 
-    def buy(self, account: str, code: str, quantity: int, price: int, flag: str) -> bool:
-        return self._order(account, code, quantity, price, flag, 'buy')
+    def buy(self, account: str, code: str, quantity: int, price: int, flag: AccountFlag) -> bool:
+        return self._order(account, code, quantity, price, flag.value, 'buy')
 
-    def sell(self, account: str, code: str, quantity: int, price: int, flag: str) -> bool:
-        return self._order(account, code, quantity, price, flag, 'sell')
+    def sell(self, account: str, code: str, quantity: int, price: int, flag: AccountFlag) -> bool:
+        return self._order(account, code, quantity, price, flag.value, 'sell')
 
     def code_to_name(self, code: str):
         return self.stock_code.code_to_name(code)
