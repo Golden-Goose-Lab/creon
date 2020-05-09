@@ -125,9 +125,9 @@ class Creon:
     def accounts(self) -> tuple:
         return self.utils.account_number
 
-    def get_account_flags(self, account: str, account_filter: AccountFilter) -> tuple:
+    def get_account_flags(self, account_num: str, account_filter: AccountFilter) -> tuple:
         # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=154&page=1&searchString=GoodsList&p=8841&v=8643&m=9505
-        return self.utils.goods_list(account, account_filter)
+        return self.utils.goods_list(account_num, account_filter)
 
     def get_all_codes(self, category: str, with_name: bool = False) -> tuple:
         # https://money2.creontrade.com/e5/mboard/ptype_basic/HTS_Plus_Helper/DW_Basic_Read_Page.aspx?boardseq=284&seq=11&page=1&searchString=GetStock&p=&v=&m=
