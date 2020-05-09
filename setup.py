@@ -8,7 +8,7 @@ def get_requirements():
 
 setup(
     name='creon',
-    version='0.1',
+    version='0.1.1',
     description='Unofficial Creon Client',
     url='https://github.com/Golden-Goose-Lab/creon',
     author='Golden-Goose-Lab',
