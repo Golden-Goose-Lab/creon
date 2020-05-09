@@ -1,3 +1,4 @@
+import sys
 from calendar import Calendar
 from ctypes import windll
 from datetime import datetime, timedelta
@@ -63,6 +64,11 @@ class Creon:
     def __init__(self, username: str = '', password: str = '', cert_password: str = '', path: str = ''):
         if not windll.shell32.IsUserAnAdmin():
             raise PermissionError("Run as administrator")
+
+        is_64bit = sys.maxsize > 2**32
+
+        if is_64bit:
+            raise Exception('Run with 32-bit Python.')
 
         if 'CpStart.exe' not in [p.name() for p in process_iter()]:
             run_creon_plus(
