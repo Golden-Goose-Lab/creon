@@ -1,13 +1,10 @@
 from setuptools import setup
 
 
-install_requires = [
-    'PyAutoGUI >= 0.9, < 1.0',
-    'pywin32 >= 221, < 230',
-    'pywinauto >= 0.6, < 0.7',
-    'psutil >= 5.7.0, < 5.8.0',
-    'typing-extensions >= 3.7, < 3.8',
-]
+def get_requirements():
+    with open('./requirements.txt', 'r') as f:
+        return [line.strip() for line in f.readlines()]
+
 
 setup(
     name='creon',
@@ -16,7 +13,7 @@ setup(
     url='https://github.com/Golden-Goose-Lab/creon',
     author='Golden-Goose-Lab',
     py_modules=['creon'],
-    install_requires=install_requires,
+    install_requires=get_requirements(),
     classifiers=[
         'Intended Audience :: Developers',
     ]
