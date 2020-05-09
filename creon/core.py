@@ -68,7 +68,7 @@ class Creon:
         is_64bit = sys.maxsize > 2**32
 
         if is_64bit:
-            raise Exception('Run with 32-bit Python.')
+            raise RuntimeError('Run with 32-bit Python.')
 
         if 'CpStart.exe' not in [p.name() for p in process_iter()]:
             run_creon_plus(
