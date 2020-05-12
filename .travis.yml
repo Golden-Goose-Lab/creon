@@ -6,7 +6,7 @@ before_install:
   - curl https://www.python.org/ftp/python/3.7.7/python-3.7.7-embed-win32.zip --output ./py37.zip
   - dir
   - unzip ./py37.zip -d /c/python37
-  - unzip /c/python37.zip -d /c/python37/Scripts
+  - unzip /c/python37/python37.zip -d /c/python37/Scripts
   - python.exe -m pip install --upgrade pip
 env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
 
@@ -16,4 +16,4 @@ install:
   - pip3 install -r ./requirements.txt
   - pip3 install .
 script:
-
+  py.test
