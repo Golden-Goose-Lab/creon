@@ -12,5 +12,5 @@ install:
   - pip3 install -r ./requirements.txt
   - pip3 install .
 script:
-  - python3 -m pytest
+  - py.test
 
