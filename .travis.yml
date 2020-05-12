@@ -14,7 +14,9 @@ env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
 
 install:
 #  - /c/Python37/Scripts/pip install --upgrade pip
-  - /c/Python37/Scripts/pip.exe install pytest
+  - dir /c/Python37/
+  - dir /c/Python37/Scripts
+  - python /c/Python37/Scripts/pip.py install pytest
   - /c/Python37/Scripts/pip install -r ./requirements.txt
   - /c/Python37/Scripts/pip install .
 script:
