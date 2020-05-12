@@ -9,7 +9,7 @@ before_install:
   - unzip ./py37.zip -d /c/python37
   - unzip -q /c/Python37/python37.zip -d /c/Python37/Scripts
   - python.exe ./get-pip.py
-  - python.exe -m pip install --upgrade pip
+  - /c/Python37/Scripts/pip --install --upgrade pip
 env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
 
 install:
