@@ -2,9 +2,12 @@ language: shell
 os: windows
 
 before_install:
-  - scoop install python3.6 -a 32bit
-  - python -m pip install --upgrade pip
-env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
+  - choco install curl unzip
+  - curl https://www.python.org/ftp/python/3.7.7/python-3.7.7-embed-win32.zip
+  - unzip python-3.7.7-embed-win32.zip /c/python37
+  - unzip /c/python37/python37/python37.zip /c/python37/Scripts
+  - python.exe -m pip install --upgrade pip
+env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
 
 install:
   - pip3 install --upgrade pip
@@ -12,5 +15,4 @@ install:
   - pip3 install -r ./requirements.txt
   - pip3 install .
 script:
-  - c:\\programdata\\chocolatey\\lib\\python3-x86_32\\tools\\Scripts\\py.test.exe
 
