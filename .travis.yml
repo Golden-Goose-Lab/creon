@@ -4,9 +4,11 @@ os: windows
 before_install:
   - choco install curl unzip
   - curl https://www.python.org/ftp/python/3.7.7/python-3.7.7-embed-win32.zip --output ./py37.zip
+  - curl https://bootstrap.pypa.io/get-pip.py --output ./get-pip.py
   - dir
   - unzip ./py37.zip -d /c/python37
-  - unzip /c/Python37/python37.zip -d /c/Python37/Scripts
+  - unzip -q /c/Python37/python37.zip -d /c/Python37/Scripts
+  - python.exe ./get-pip.py
   - python.exe -m pip install --upgrade pip
 env: PATH=/c/Python37:/c/Python37/Scripts:$PATH
 
