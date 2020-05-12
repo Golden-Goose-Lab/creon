@@ -2,7 +2,7 @@ language: shell
 os: windows
 
 before_install:
-  - choco install python-x86_32 --version=3.6.10
+  - choco install python-x86_32
   - python -m pip install --upgrade pip
 env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
 
