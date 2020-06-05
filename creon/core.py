@@ -18,14 +18,26 @@ from creon.constants import (
     AccountFilter,
 )
 from creon.types import Candle
-from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta, is_validate_path
+from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta, is_validate_path, is_now_market_working
 
 
-class DB:
+class MarketTimeDB:
+    __blank__ = {}
+
     def __init__(self, db_path: str = ''):
         if not db_path or is_validate_path(db_path):
             db_path = path.join(getcwd(), 'db.json')
         self.db = TinyDB(db_path)
+
+    def get(self, key: str) -> dict:
+        now = datetime.now()
+        if is_now_market_working(now):
+            return self.__blank__
+        query = Query()
+        return self.db.search(query.key == key)
+
+    def create(self, key: str, value: str):
+        self.db.insert({'key': key, 'value': value})
 
 
 class COMWrapper:
@@ -90,7 +102,7 @@ class Creon:
                 creon_path or environ.get('CREON_PATH', '')
             )
 
-        self.__db__ = DB(db_path)
+        self.__db__ = MarketTimeDB(db_path)
 
 
     @property
