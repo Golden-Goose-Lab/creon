@@ -10,7 +10,7 @@ from typing import (
 
 
 from psutil import process_iter
-from tinydb import TinyDB
+from tinydb import TinyDB, Query
 from win32com import client
 
 from creon.constants import (
@@ -19,6 +19,13 @@ from creon.constants import (
 )
 from creon.types import Candle
 from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta, is_validate_path
+
+
+class DB:
+    def __init__(self, db_path: str = ''):
+        if not db_path or is_validate_path(db_path):
+            db_path = path.join(getcwd(), 'db.json')
+        self.db = TinyDB(db_path)
 
 
 class COMWrapper:
@@ -83,9 +90,7 @@ class Creon:
                 creon_path or environ.get('CREON_PATH', '')
             )
 
-        if not db_path or is_validate_path(db_path):
-            db_path = path.join(getcwd(), 'db.json')
-        self.__db__ = TinyDB(db_path)
+        self.__db__ = DB(db_path)
 
 
     @property
