@@ -29,14 +29,14 @@ class MarketTimeDB:
             db_path = path.join(getcwd(), 'db.json')
         self.db = TinyDB(db_path)
 
-    def get(self, key: str) -> dict:
+    def get(self, key: list) -> dict:
         now = datetime.now()
         if is_now_market_working(now):
             return self.__blank__
         query = Query()
         return self.db.search(query.key == key)
 
-    def create(self, key: str, value: str):
+    def create(self, key: list, value: str):
         self.db.insert({'key': key, 'value': value})
 
 
