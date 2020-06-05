@@ -1,3 +1,4 @@
+import inspect
 import sys
 from calendar import Calendar
 from ctypes import windll
@@ -34,10 +35,10 @@ class MarketTimeDB:
         if is_now_market_working(now):
             return self.__blank__
         query = Query()
-        return self.db.search(query.key == key)
+        return self.db.search(query.key == key, query.method == inspect.stack()[1][3])
 
     def create(self, key: list, value: str):
-        self.db.insert({'key': key, 'value': value})
+        self.db.insert({'key': key, 'method': inspect.stack()[1][3], 'value': value})
 
 
 class COMWrapper:
