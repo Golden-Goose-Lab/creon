@@ -3,13 +3,14 @@ from calendar import Calendar
 from ctypes import windll
 from datetime import datetime, timedelta
 from logging import Logger
-from os import environ
+from os import environ, getcwd, path
 from typing import (
     List,
 )
 
 
 from psutil import process_iter
+from tinydb import TinyDB
 from win32com import client
 
 from creon.constants import (
@@ -17,7 +18,7 @@ from creon.constants import (
     AccountFilter,
 )
 from creon.types import Candle
-from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta
+from creon.utils import run_creon_plus, snake_to_camel, timeframe_to_timedelta, is_validate_path
 
 
 class COMWrapper:
@@ -52,6 +53,7 @@ class COMWrapper:
 
 class Creon:
     __codes__ = None
+    __db__ = None
     __utils__ = None
     __trades__ = None
     __trade_actions__ = {'sell': '1', 'buy': '2'}
@@ -61,7 +63,10 @@ class Creon:
     __chart__ = None
     __logger__ = Logger(__name__)
 
-    def __init__(self, username: str = '', password: str = '', cert_password: str = '', path: str = ''):
+    def __init__(
+            self,
+            username: str = '', password: str = '', cert_password: str = '', creon_path: str = '', db_path: str = ''
+    ):
         if not windll.shell32.IsUserAnAdmin():
             raise PermissionError("Run as administrator")
 
@@ -75,8 +80,13 @@ class Creon:
                 username or environ.get('CREON_USERNAME', ''),
                 password or environ.get('CREON_PASSWORD', ''),
                 cert_password or environ.get('CREON_CERTIFICATION_PASSWORD', ''),
-                path or environ.get('CREON_PATH', '')
+                creon_path or environ.get('CREON_PATH', '')
             )
+
+        if not db_path or is_validate_path(db_path):
+            db_path = path.join(getcwd(), 'db.json')
+        self.__db__ = TinyDB(db_path)
+
 
     @property
     def codes(self) -> COMWrapper:
