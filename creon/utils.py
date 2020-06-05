@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 from time import sleep
 
 from pyautogui import typewrite, press
@@ -50,3 +50,7 @@ def timeframe_to_timedelta(timeframe: tuple) -> timedelta:
 
 def is_validate_path(path: str) -> bool:
     return os.path.exists(path) and os.access(path, os.W_OK)
+
+
+def is_now_market_working(now: datetime) -> bool:
+    return (1 <= now.isoweekday() <= 5) and ((9 <= now.hour <= 14) or (now.hour == 15 and now.minute <= 30))
