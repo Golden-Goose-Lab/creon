@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from time import sleep
 
@@ -45,3 +46,7 @@ def timeframe_to_timedelta(timeframe: tuple) -> timedelta:
         raise ValueError('timeframe unit {} is not supported'.format(unit))
 
     return time_delta
+
+
+def is_validate_path(path: str) -> bool:
+    return os.path.exists(path) and os.access(path, os.W_OK)
